@@ -1,0 +1,950 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCalculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@14.0.1/lib/browser/math.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathlive@0.112.0"></script>
+    <style>
+        :root {
+            --bg: #070c16;
+            --panel: #111a2c;
+            --screen: #050a12;
+            --btn: #202c43;
+            --hover: #2d3b56;
+            --num: #263650;
+            --fun: #1d3150;
+            --op: #33415c;
+            --adv: #302247;
+            --blue: #2563eb;
+            --red: #7f1d1d;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --border: #2b3954
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html {
+            scroll-behavior: auto
+        }
+
+        body {
+            margin: 0;
+            padding: 18px;
+            min-height: 100vh;
+            background: radial-gradient(circle at top,#1b2945 0%,var(--bg) 55%);
+            color: var(--text);
+            font-family: Inter,Arial,sans-serif
+        }
+
+        button, input, textarea, select {
+            font: inherit
+        }
+
+        button {
+            min-height: 52px;
+            padding: 10px 12px;
+            background: var(--btn);
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            color: var(--text);
+            font-size: 16px;
+            cursor: pointer;
+            transition: .12s
+        }
+
+            button:hover {
+                background: var(--hover)
+            }
+
+            button:active {
+                transform: scale(.97)
+            }
+
+            button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+                outline: 2px solid #60a5fa;
+                outline-offset: 2px
+            }
+
+        .menu-button {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1001;
+            width: 52px;
+            height: 52px;
+            padding: 0;
+            border-radius: 14px;
+            background: #0f1828;
+            font-size: 24px
+        }
+
+        .menu-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            background: #0008;
+            opacity: 0;
+            visibility: hidden;
+            transition: .2s
+        }
+
+            .menu-overlay.abierto {
+                opacity: 1;
+                visibility: visible
+            }
+
+        .menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 1000;
+            width: min(330px,84vw);
+            padding: 30px 18px;
+            overflow: auto;
+            background: #0c1424;
+            border-right: 1px solid #263650;
+            transform: translateX(-100%);
+            transition: .25s
+        }
+
+            .menu.abierto {
+                transform: translateX(0)
+            }
+
+            .menu h2 {
+                margin: 12px 8px 4px
+            }
+
+            .menu p {
+                margin: 0 8px 22px;
+                color: var(--muted);
+                font-size: 12px
+            }
+
+        .menu-seccion-titulo {
+            padding: 0 8px 8px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase
+        }
+
+        .menu-item {
+            width: 100%;
+            min-height: 56px;
+            margin: 0 0 7px;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: transparent;
+            text-align: left;
+            border: 1px solid transparent;
+            color: #cbd5e1
+        }
+
+            .menu-item.activo {
+                background: #1d4ed8;
+                border-color: #3b82f6;
+                color: #fff
+            }
+
+        .menu-icono {
+            width: 30px;
+            text-align: center;
+            font-size: 20px
+        }
+
+        .menu-item-texto {
+            display: flex;
+            flex-direction: column;
+            gap: 2px
+        }
+
+        .menu-item-nombre {
+            font-size: 15px;
+            font-weight: 700
+        }
+
+        .menu-item-descripcion {
+            font-size: 11px;
+            color: #71809b
+        }
+
+        .menu-item.activo .menu-item-descripcion {
+            color: #bfdbfe
+        }
+
+        .app {
+            width: min(1400px,100%);
+            margin: auto
+        }
+
+        .cabecera {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin: 62px 0 18px
+        }
+
+        .titulo {
+            margin: 0;
+            font-size: clamp(25px,4vw,36px)
+        }
+
+        .subtitulo {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 14px
+        }
+
+        .estado {
+            padding: 8px 13px;
+            background: #172554;
+            border: 1px solid #263d74;
+            border-radius: 999px;
+            color: #93c5fd;
+            font-size: 13px
+        }
+
+        .modo {
+            display: none
+        }
+
+            .modo.activo {
+                display: block
+            }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0,1fr) 330px;
+            gap: 18px
+        }
+
+        .panel {
+            padding: 18px;
+            background: #111a2cf5;
+            border: 1px solid var(--border);
+            border-radius: 17px;
+            box-shadow: 0 20px 60px #00000052
+        }
+
+        .pantalla {
+            padding: 18px;
+            margin-bottom: 14px;
+            background: var(--screen);
+            border: 1px solid #25324a;
+            border-radius: 16px
+        }
+
+        .pantalla-etiqueta {
+            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase
+        }
+
+        .pantalla-expresion {
+            min-height: 28px;
+            color: #cbd5e1;
+            font-size: 18px;
+            overflow-wrap: anywhere
+        }
+
+        .pantalla-resultado {
+            min-height: 55px;
+            margin-top: 8px;
+            font-size: clamp(28px,5vw,46px);
+            font-weight: 700;
+            line-height: 1.15;
+            overflow-wrap: anywhere
+        }
+
+        .pantalla-error {
+            color: #fca5a5
+        }
+
+        .acciones {
+            display: grid;
+            grid-template-columns: 1.1fr .9fr .9fr 1fr 1.2fr;
+            gap: 8px;
+            margin: 14px 0 18px
+        }
+
+        .btn-igual {
+            background: var(--blue);
+            border-color: var(--blue);
+            font-weight: 700
+        }
+
+        .btn-limpiar {
+            background: var(--red);
+            border-color: #992727
+        }
+
+        .btn-fraccion {
+            background: #18324e;
+            border-color: #2b5b86;
+            color: #bfdbfe;
+            font-size: 20px
+        }
+
+        .tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px
+        }
+
+        .tab {
+            min-height: 48px;
+            background: #172238;
+            color: var(--muted);
+            font-weight: 700
+        }
+
+            .tab.activa {
+                background: var(--blue);
+                border-color: var(--blue);
+                color: #fff
+            }
+
+        .contenido-tab {
+            display: none
+        }
+
+            .contenido-tab.activo {
+                display: block
+            }
+
+        .seccion {
+            margin-top: 18px
+        }
+
+        .seccion-cabecera {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 9px
+        }
+
+        .seccion-titulo {
+            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase
+        }
+
+        .grid {
+            display: grid;
+            gap: 8px
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3,1fr)
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4,1fr)
+        }
+
+        .grid-5 {
+            grid-template-columns: repeat(5,1fr)
+        }
+
+        .numero {
+            background: var(--num);
+            font-size: 21px;
+            font-weight: 600
+        }
+
+        .funcion {
+            background: var(--fun);
+            color: #bfdbfe
+        }
+
+        .operador {
+            background: var(--op);
+            font-size: 20px
+        }
+
+        .avanzado {
+            background: var(--adv);
+            color: #e9d5ff
+        }
+
+        .info {
+            margin-top: 16px;
+            padding: 13px;
+            background: #0d1627;
+            border: 1px solid #23314b;
+            border-radius: 12px;
+            color: #71809b;
+            font-size: 13px;
+            line-height: 1.6
+        }
+
+        .math-editor {
+            display: block;
+            width: 100%;
+            min-height: 105px;
+            padding: 16px;
+            background: #10192b;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            color: #fff;
+            font-size: 24px;
+            --caret-color: transparent;
+            --selection-background-color: #2563eb55
+        }
+
+            .math-editor[readonly] {
+                cursor: default
+            }
+
+        .variables-panel, .fracciones-panel {
+            display: none;
+            margin: 14px 0 18px;
+            padding: 14px;
+            background: #0d1627;
+            border: 1px solid #23314b;
+            border-radius: 14px
+        }
+
+            .variables-panel.visible, .fracciones-panel.visible {
+                display: block
+            }
+
+        .variables-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px
+        }
+
+        .variables-title {
+            margin: 0;
+            font-size: 17px
+        }
+
+        .variables-subtitle {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 12px
+        }
+
+        .variable-card {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #111d31;
+            border: 1px solid #263751;
+            border-radius: 11px
+        }
+
+        .variable-label {
+            display: block;
+            margin-bottom: 6px;
+            color: #93c5fd;
+            font-size: 12px;
+            font-weight: 700
+        }
+
+        .variable-formula {
+            display: block;
+            width: 100%;
+            min-height: 52px;
+            background: #10192b;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: #fff;
+            padding: 10px;
+            --caret-color: #60a5fa
+        }
+
+        .variable-delete {
+            margin-top: 7px;
+            min-height: 34px;
+            padding: 6px 10px;
+            background: #35171b;
+            color: #fca5a5;
+            font-size: 12px
+        }
+
+        .fracciones-titulo {
+            margin: 0 0 12px;
+            color: #bfdbfe;
+            font-size: 15px
+        }
+
+        .fracciones-resultados {
+            display: grid;
+            grid-template-columns: repeat(3,1fr);
+            gap: 10px
+        }
+
+        .fraccion-card {
+            padding: 12px;
+            background: #09111f;
+            border: 1px solid #263751;
+            border-radius: 11px
+        }
+
+        .fraccion-card-titulo {
+            margin-bottom: 7px;
+            color: #71809b;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .7px;
+            text-transform: uppercase
+        }
+
+        .fraccion-card-valor {
+            font-family: "Cambria Math","Times New Roman",serif;
+            font-size: 20px;
+            overflow-wrap: anywhere
+        }
+
+        .herramienta {
+            max-width: 1100px
+        }
+
+        .modo-titulo {
+            margin: 0 0 6px;
+            font-size: 26px
+        }
+
+        .modo-descripcion {
+            margin: 0 0 20px;
+            color: var(--muted);
+            font-size: 14px
+        }
+
+        .campo {
+            width: 100%;
+            min-height: 50px;
+            padding: 12px;
+            background: #09111f;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            color: #fff;
+            outline: none;
+            font-size: 17px
+        }
+
+        .fila {
+            display: grid;
+            grid-template-columns: repeat(2,1fr);
+            gap: 10px;
+            margin-bottom: 10px
+        }
+
+        .resultado-herramienta {
+            margin-top: 16px;
+            padding: 15px;
+            background: var(--screen);
+            border: 1px solid #25324a;
+            border-radius: 12px;
+            color: #cbd5e1;
+            font-size: 18px;
+            overflow-wrap: anywhere
+        }
+
+            .resultado-herramienta pre {
+                white-space: pre-wrap
+            }
+
+        .estadistica-grid {
+            display: grid;
+            grid-template-columns: repeat(4,1fr);
+            gap: 10px;
+            margin-top: 15px
+        }
+
+        .estadistica-card {
+            padding: 13px;
+            background: #0d1627;
+            border: 1px solid #253650;
+            border-radius: 10px
+        }
+
+            .estadistica-card small {
+                display: block;
+                margin-bottom: 5px;
+                color: #64748b
+            }
+
+        .grafica-controles {
+            display: grid;
+            grid-template-columns: repeat(4,1fr);
+            gap: 9px;
+            margin-top: 10px
+        }
+
+        .grafica-lista {
+            display: grid;
+            gap: 9px;
+            margin-top: 12px
+        }
+
+        .grafica-row {
+            display: grid;
+            grid-template-columns: 1fr 55px auto;
+            gap: 8px;
+            align-items: center
+        }
+
+        .grafica-color {
+            width: 100%;
+            height: 50px;
+            padding: 3px
+        }
+
+        .grafica-row button {
+            min-width: 90px
+        }
+
+        .canvas-wrapper {
+            overflow: hidden;
+            margin-top: 15px;
+            background: #03070d;
+            border: 1px solid #263650;
+            border-radius: 13px
+        }
+
+            .canvas-wrapper canvas {
+                display: block;
+                width: 100%;
+                height: 500px
+            }
+
+        .leyenda {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 11px
+        }
+
+        .leyenda-item {
+            padding: 6px 9px;
+            background: #10192b;
+            border: 1px solid #263751;
+            border-radius: 8px;
+            font-size: 12px
+        }
+
+        .matriz-botones {
+            display: grid;
+            grid-template-columns: repeat(4,1fr);
+            gap: 8px;
+            margin-top: 10px
+        }
+
+        .foto-box {
+            border: 1px dashed #3b82f6;
+            border-radius: 14px;
+            padding: 18px;
+            background: #0d1627
+        }
+
+        .foto-preview {
+            display: none;
+            max-width: 100%;
+            max-height: 420px;
+            margin-top: 15px;
+            border-radius: 12px;
+            border: 1px solid #263650
+        }
+
+            .foto-preview.visible {
+                display: block
+            }
+
+        .letras-extra {
+            display: grid;
+            gap: 8px
+        }
+
+        .letras-grid {
+            display: grid;
+            grid-template-columns: repeat(8,1fr);
+            gap: 8px
+        }
+
+        .angulo-toggle {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-end;
+            margin-bottom: 12px
+        }
+
+            .angulo-toggle button {
+                min-height: 40px
+            }
+
+            .angulo-toggle .activo {
+                background: #1d4ed8;
+                border-color: #3b82f6
+            }
+
+        .historial-item {
+            padding: 11px;
+            margin-bottom: 8px;
+            background: #10192b;
+            border: 1px solid #25324a;
+            border-radius: 11px;
+            cursor: pointer
+        }
+
+        .historial-exp {
+            overflow-wrap: anywhere
+        }
+
+        .historial-res {
+            color: #60a5fa;
+            font-weight: bold;
+            margin-top: 5px;
+            overflow-wrap: anywhere
+        }
+
+        @media(max-width:1050px) {
+            .layout {
+                grid-template-columns: 1fr
+            }
+        }
+
+        @media(max-width:700px) {
+            body {
+                padding: 10px
+            }
+
+            .panel {
+                padding: 13px
+            }
+
+            .cabecera {
+                align-items: flex-start;
+                flex-direction: column
+            }
+
+            .acciones {
+                grid-template-columns: repeat(2,1fr)
+            }
+
+            .grid-5 {
+                grid-template-columns: repeat(3,1fr)
+            }
+
+            .fracciones-resultados {
+                grid-template-columns: 1fr
+            }
+
+            .fila, .grafica-controles {
+                grid-template-columns: 1fr
+            }
+
+            .estadistica-grid {
+                grid-template-columns: repeat(2,1fr)
+            }
+
+            .matriz-botones {
+                grid-template-columns: repeat(2,1fr)
+            }
+
+            .grafica-row {
+                grid-template-columns: 1fr 52px
+            }
+
+                .grafica-row button {
+                    grid-column: 1/-1
+                }
+
+            .letras-grid {
+                grid-template-columns: repeat(6,1fr)
+            }
+        }
+    </style>
+</head>
+<body>
+    <button type="button" id="menuButton" class="menu-button" aria-label="Abrir menú">☰</button>
+    <div id="menuOverlay" class="menu-overlay"></div>
+    <nav id="menu" class="menu">
+        <h2>Herramientas</h2><p>Cada apartado tiene sus propias herramientas.</p>
+        <div class="menu-seccion-titulo">Matemáticas</div>
+        <button type="button" class="menu-item activo" data-modo="calculadora"><span class="menu-icono">Σ</span><span class="menu-item-texto"><span class="menu-item-nombre">Calculadora</span><span class="menu-item-descripcion">Expresiones, fracciones y fórmulas</span></span></button>
+        <button type="button" class="menu-item" data-modo="ecuaciones"><span class="menu-icono">=</span><span class="menu-item-texto"><span class="menu-item-nombre">Ecuaciones</span><span class="menu-item-descripcion">Ecuaciones y sistemas</span></span></button>
+        <button type="button" class="menu-item" data-modo="binario"><span class="menu-icono">01</span><span class="menu-item-texto"><span class="menu-item-nombre">Binario</span><span class="menu-item-descripcion">Bases y bits</span></span></button>
+        <button type="button" class="menu-item" data-modo="estadistica"><span class="menu-icono">σ</span><span class="menu-item-texto"><span class="menu-item-nombre">Estadística</span><span class="menu-item-descripcion">Datos y distribuciones</span></span></button>
+        <button type="button" class="menu-item" data-modo="matrices"><span class="menu-icono">▦</span><span class="menu-item-texto"><span class="menu-item-nombre">Matrices</span><span class="menu-item-descripcion">Álgebra lineal</span></span></button>
+        <button type="button" class="menu-item" data-modo="complejos"><span class="menu-icono">i</span><span class="menu-item-texto"><span class="menu-item-nombre">Complejos</span><span class="menu-item-descripcion">Números complejos</span></span></button>
+        <div class="menu-seccion-titulo" style="margin-top:12px">Herramientas científicas</div>
+        <button type="button" class="menu-item" data-modo="unidades"><span class="menu-icono">↔</span><span class="menu-item-texto"><span class="menu-item-nombre">Unidades</span><span class="menu-item-descripcion">Conversiones</span></span></button>
+        <button type="button" class="menu-item" data-modo="graficas"><span class="menu-icono">∿</span><span class="menu-item-texto"><span class="menu-item-nombre">Gráficas</span><span class="menu-item-descripcion">Tantas funciones como quieras</span></span></button>
+        <button type="button" class="menu-item" data-modo="foto"><span class="menu-icono">📷</span><span class="menu-item-texto"><span class="menu-item-nombre">Foto</span><span class="menu-item-descripcion">Preparado para reconocer matemáticas</span></span></button>
+    </nav>
+    <div class="app">
+        <header class="cabecera"><div><h1 id="tituloModo" class="titulo">MyCalculator</h1><p id="subtituloModo" class="subtitulo">Calculadora universal</p></div><div id="estado" class="estado">Motor matemático activo</div></header>
+        <section id="modo-calculadora" class="modo activo">
+            <div class="layout">
+                <main class="panel">
+                    <section class="pantalla"><div class="pantalla-etiqueta">Expresión</div><div id="expresion" class="pantalla-expresion">-</div><div id="resultadoPantalla" class="pantalla-resultado">0</div></section>
+                    <math-field id="entrada" class="math-editor" readonly virtual-keyboard-mode="manual" math-virtual-keyboard-policy="manual"></math-field>
+                    <div class="acciones"><button type="button" class="btn-limpiar" id="btnC">C</button><button type="button" id="btnBorrar">⌫</button><button type="button" id="btnSigno">±</button><button type="button" class="btn-fraccion" id="btnFraccion">a⁄b</button><button type="button" class="btn-igual" id="btnIgual">=</button></div>
+                    <section id="fraccionesPanel" class="fracciones-panel"><h3 class="fracciones-titulo">Resultado racional</h3><div class="fracciones-resultados"><div class="fraccion-card"><div class="fraccion-card-titulo">Fracción final</div><div id="fraccionFinal" class="fraccion-card-valor">—</div></div><div class="fraccion-card"><div class="fraccion-card-titulo">Simplificada al máximo</div><div id="fraccionSimplificada" class="fraccion-card-valor">—</div></div><div class="fraccion-card"><div class="fraccion-card-titulo">Resultado decimal</div><div id="fraccionDecimal" class="fraccion-card-valor">—</div></div></div></section>
+                    <section id="variablesPanel" class="variables-panel"><div class="variables-header"><div><h2 class="variables-title">Variables detectadas</h2><p class="variables-subtitle">Las letras se separan, pero las funciones como tan y sin no son variables.</p></div><button type="button" id="btnCrearVariable">+ Variable</button></div><div id="variablesLista"></div></section>
+                    <div class="angulo-toggle"><span style="color:var(--muted);font-size:13px">Ángulo:</span><button type="button" id="radBtn" class="activo">RAD</button><button type="button" id="degBtn">DEG</button></div>
+                    <div class="tabs"><button type="button" id="tabBasica" class="tab activa">Básica</button><button type="button" id="tabAvanzada" class="tab">Avanzada</button><button type="button" id="tabLetras" class="tab">Letras</button></div>
+                    <div id="contenidoBasica" class="contenido-tab activo"><section class="seccion"><div class="seccion-cabecera"><div class="seccion-titulo">Números</div></div><div class="grid grid-3"><button type="button" class="numero calc-btn" data-v="7">7</button><button type="button" class="numero calc-btn" data-v="8">8</button><button type="button" class="numero calc-btn" data-v="9">9</button><button type="button" class="numero calc-btn" data-v="4">4</button><button type="button" class="numero calc-btn" data-v="5">5</button><button type="button" class="numero calc-btn" data-v="6">6</button><button type="button" class="numero calc-btn" data-v="1">1</button><button type="button" class="numero calc-btn" data-v="2">2</button><button type="button" class="numero calc-btn" data-v="3">3</button><button type="button" class="numero calc-btn" data-v="0">0</button><button type="button" class="numero calc-btn" data-v=".">.</button><button type="button" class="numero calc-btn" data-v="00">00</button></div></section><section class="seccion"><div class="seccion-cabecera"><div class="seccion-titulo">Operadores</div></div><div class="grid grid-4"><button type="button" class="operador calc-btn" data-v="+">+</button><button type="button" class="operador calc-btn" data-v="-">−</button><button type="button" class="operador calc-btn" data-v="\\cdot ">×</button><button type="button" class="operador calc-btn" data-v="\\div ">÷</button><button type="button" class="operador calc-btn" data-v="%">%</button><button type="button" class="operador calc-btn" data-v="^">xʸ</button><button type="button" class="operador calc-btn" data-v="(">(</button><button type="button" class="operador calc-btn" data-v=")">)</button></div></section><section class="seccion"><div class="seccion-cabecera"><div class="seccion-titulo">Funciones</div></div><div class="grid grid-5"><button type="button" class="funcion calc-btn" data-v="\\sqrt{#?}">√</button><button type="button" class="funcion calc-btn" data-v="\\sqrt[3]{#?}">∛</button><button type="button" class="funcion calc-btn" data-v="abs(">|x|</button><button type="button" class="funcion calc-btn" data-v="sin(">sin</button><button type="button" class="funcion calc-btn" data-v="cos(">cos</button><button type="button" class="funcion calc-btn" data-v="tan(">tan</button><button type="button" class="funcion calc-btn" data-v="asin(">asin</button><button type="button" class="funcion calc-btn" data-v="acos(">acos</button><button type="button" class="funcion calc-btn" data-v="atan(">atan</button><button type="button" class="funcion calc-btn" data-v="log10(">log</button><button type="button" class="funcion calc-btn" data-v="ln(">ln</button><button type="button" class="funcion calc-btn" data-v="exp(">exp</button><button type="button" class="funcion calc-btn" data-v="floor(">floor</button><button type="button" class="funcion calc-btn" data-v="ceil(">ceil</button><button type="button" class="funcion calc-btn" data-v="round(">round</button><button type="button" class="funcion calc-btn" data-v="!">x!</button><button type="button" class="funcion calc-btn" data-v="\\pi">π</button><button type="button" class="funcion calc-btn" data-v="e">e</button><button type="button" class="funcion calc-btn" data-v="i">i</button><button type="button" class="funcion calc-btn" data-v="\\infty">∞</button></div></section></div>
+                    <div id="contenidoAvanzada" class="contenido-tab"><section class="seccion"><div class="seccion-cabecera"><div class="seccion-titulo">Sumatorios y productos</div></div><div class="grid grid-4"><button type="button" class="avanzado calc-btn" data-v="Σ(">Σ</button><button type="button" class="avanzado calc-btn" data-v="Π(">Π</button><button type="button" class="avanzado calc-btn" data-v="∑(">∑</button><button type="button" class="avanzado calc-btn" data-v="∏(">∏</button></div></section><section class="seccion"><div class="seccion-cabecera"><div class="seccion-titulo">Cálculo</div></div><div class="grid grid-4"><button type="button" class="avanzado calc-btn" data-v="∫(">∫</button><button type="button" class="avanzado calc-btn" data-v="lim(">lim</button><button type="button" class="avanzado calc-btn" data-v="deriv(">d/dx</button><button type="button" class="avanzado calc-btn" data-v="→">→</button></div></section><section class="seccion"><div class="seccion-cabecera"><div class="seccion-titulo">Matrices y símbolos</div></div><div class="grid grid-4"><button type="button" class="avanzado calc-btn" data-v="[">[</button><button type="button" class="avanzado calc-btn" data-v="]">]</button><button type="button" class="avanzado calc-btn" data-v=",">,</button><button type="button" class="avanzado calc-btn" data-v=";">;</button><button type="button" class="avanzado calc-btn" data-v="det(">det</button><button type="button" class="avanzado calc-btn" data-v="inv(">inv</button><button type="button" class="avanzado calc-btn" data-v="transpose(">tr</button><button type="button" class="avanzado calc-btn" data-v="trace(">trace</button><button type="button" class="avanzado calc-btn" data-v="∂">∂</button><button type="button" class="avanzado calc-btn" data-v="∇">∇</button><button type="button" class="avanzado calc-btn" data-v="Δ">Δ</button><button type="button" class="avanzado calc-btn" data-v="≈">≈</button></div></section></div>
+                    <div id="contenidoLetras" class="contenido-tab"><section class="seccion"><div class="seccion-cabecera"><div class="seccion-titulo">Letras</div></div><div id="letrasGrid" class="letras-grid"></div></section><section class="seccion"><div class="seccion-cabecera"><div class="seccion-titulo">Magnitudes y física</div></div><div id="fisicaGrid" class="letras-grid"></div></section><section class="seccion"><div class="seccion-cabecera"><div class="seccion-titulo">Símbolos</div></div><div id="simbolosGrid" class="letras-grid"></div></section><div class="info">Las letras se insertan como letras normales. Las palabras reservadas como <strong>tan</strong>, <strong>sin</strong>, <strong>sqrt</strong> y <strong>log</strong> no se convierten en variables.</div></div>
+                </main><aside class="panel"><h2>Historial</h2><button type="button" id="vaciarHistorial">Borrar historial</button><div id="historialLista" style="margin-top:15px"></div></aside>
+            </div>
+        </section>
+        <section id="modo-ecuaciones" class="modo"><div class="panel herramienta"><h2 class="modo-titulo">Ecuaciones y sistemas</h2><p class="modo-descripcion">Resuelve ecuaciones con x o sistemas lineales con x, y, z.</p><div class="tabs" style="grid-template-columns:1fr 1fr"><button type="button" id="tabEcuacion" class="tab activa">Ecuación</button><button type="button" id="tabSistema" class="tab">Sistema</button></div><div id="panelEcuacion"><input id="ecuacionInput" class="campo" placeholder="2*x+5=17"><br><br><button type="button" class="btn-igual" id="resolverEcuacion">Resolver</button><div id="resultadoEcuacion" class="resultado-herramienta">Esperando ecuación.</div></div><div id="panelSistema" style="display:none"><textarea id="sistemaInput" class="campo" style="min-height:130px" placeholder="x+y=10\n2*x-y=5"></textarea><br><br><button type="button" class="btn-igual" id="resolverSistema">Resolver sistema</button><div id="resultadoSistema" class="resultado-herramienta">Esperando sistema.</div></div></div></section>
+        <section id="modo-binario" class="modo"><div class="panel herramienta"><h2 class="modo-titulo">Calculadora Binaria</h2><p class="modo-descripcion">Conversión entre bases y operaciones de bits.</p><div class="fila"><input id="binDecimal" class="campo" placeholder="Decimal"><input id="binBinario" class="campo" placeholder="Binario"></div><div class="fila"><input id="binHex" class="campo" placeholder="Hexadecimal"><input id="binOctal" class="campo" placeholder="Octal"></div><button type="button" class="btn-igual" id="convertirBinario">Convertir</button><div id="resultadoBinario" class="resultado-herramienta">Introduce un número.</div><section class="seccion"><div class="seccion-cabecera"><div class="seccion-titulo">Operaciones de bits</div></div><div class="fila"><input id="bitA" class="campo" placeholder="A"><input id="bitB" class="campo" placeholder="B"></div><div class="grid grid-4"><button type="button" id="bitAnd">AND</button><button type="button" id="bitOr">OR</button><button type="button" id="bitXor">XOR</button><button type="button" id="bitShift">A &lt;&lt; 1</button></div><div id="resultadoBits" class="resultado-herramienta">—</div></section></div></section>
+        <section id="modo-estadistica" class="modo"><div class="panel herramienta"><h2 class="modo-titulo">Estadística</h2><p class="modo-descripcion">Escribe datos separados por comas, espacios o saltos de línea.</p><textarea id="datosEstadistica" class="campo" style="min-height:130px" placeholder="1,2,3,4,5,10"></textarea><br><br><button type="button" class="btn-igual" id="calcularEstadistica">Analizar datos</button><div id="resultadoEstadistica" class="resultado-herramienta">Esperando datos.</div></div></section>
+        <section id="modo-matrices" class="modo"><div class="panel herramienta"><h2 class="modo-titulo">Matrices</h2><p class="modo-descripcion">Usa la sintaxis [[1,2],[3,4]].</p><div class="fila"><textarea id="matrizA" class="campo" style="min-height:100px" placeholder="A = [[1,2],[3,4]]"></textarea><textarea id="matrizB" class="campo" style="min-height:100px" placeholder="B = [[5,6],[7,8]]"></textarea></div><div class="matriz-botones"><button type="button" data-matriz="add">A + B</button><button type="button" data-matriz="multiply">A × B</button><button type="button" data-matriz="det">det(A)</button><button type="button" data-matriz="inv">inv(A)</button><button type="button" data-matriz="transpose">Aᵀ</button><button type="button" data-matriz="trace">tr(A)</button><button type="button" data-matriz="rank">rank(A)</button><button type="button" data-matriz="eigen">Eigen</button></div><div id="resultadoMatrices" class="resultado-herramienta">Esperando matrices.</div></div></section>
+        <section id="modo-complejos" class="modo"><div class="panel herramienta"><h2 class="modo-titulo">Números Complejos</h2><p class="modo-descripcion">Usa i directamente.</p><input id="expresionCompleja" class="campo" value="(3+4i)*(2-i)"><br><br><div class="grid grid-4"><button type="button" class="btn-igual" id="calcularComplejo">Calcular</button><button type="button" data-complejo="re">Re</button><button type="button" data-complejo="im">Im</button><button type="button" data-complejo="abs">|z|</button><button type="button" data-complejo="arg">arg</button><button type="button" data-complejo="conj">conj</button><button type="button" data-complejo="polar">Polar</button><button type="button" data-complejo="rect">Rect</button></div><div id="resultadoComplejo" class="resultado-herramienta">Introduce una expresión.</div></div></section>
+        <section id="modo-unidades" class="modo"><div class="panel herramienta"><h2 class="modo-titulo">Conversor de Unidades</h2><p class="modo-descripcion">Longitud, masa, tiempo, velocidad, área, volumen y temperatura.</p><div class="fila"><input id="valorUnidad" class="campo" type="number" placeholder="Valor"><select id="tipoUnidad" class="campo"><option value="length">Longitud</option><option value="mass">Masa</option><option value="time">Tiempo</option><option value="speed">Velocidad</option><option value="area">Área</option><option value="volume">Volumen</option><option value="temperature">Temperatura</option></select></div><div class="fila"><select id="unidadOrigen" class="campo"></select><select id="unidadDestino" class="campo"></select></div><button type="button" class="btn-igual" id="convertirUnidad">Convertir</button><div id="resultadoUnidad" class="resultado-herramienta">—</div></div></section>
+        <section id="modo-graficas" class="modo"><div class="panel herramienta"><h2 class="modo-titulo">Gráficas</h2><p class="modo-descripcion">Añade todas las funciones que quieras y elige un color para cada una.</p><div id="graficaLista" class="grafica-lista"></div><br><button type="button" id="anadirGrafica">+ Añadir fórmula</button><div class="grafica-controles"><input id="graficaXMin" class="campo" type="number" value="-10"><input id="graficaXMax" class="campo" type="number" value="10"><input id="graficaYMin" class="campo" type="number" value="-10"><input id="graficaYMax" class="campo" type="number" value="10"></div><br><button type="button" class="btn-igual" id="dibujarGraficas">Dibujar todas</button><div class="canvas-wrapper"><canvas id="graficaCanvas"></canvas></div><div id="graficaLeyenda" class="leyenda"></div></div></section>
+        <section id="modo-foto" class="modo"><div class="panel herramienta"><h2 class="modo-titulo">Foto de matemáticas</h2><p class="modo-descripcion">Esta parte queda preparada para conectar el reconocimiento matemático posteriormente.</p><div class="foto-box"><input id="fotoInput" type="file" accept="image/*"><br><br><button type="button" id="abrirCamara">Abrir cámara</button><button type="button" id="cerrarCamara" style="display:none">Cerrar cámara</button><video id="camaraVideo" playsinline style="display:none;width:100%;max-height:420px;border-radius:12px;margin-top:15px"></video><button type="button" id="hacerFoto" style="display:none;margin-top:10px">Capturar foto</button><img id="fotoPreview" class="foto-preview" alt="Vista previa"><canvas id="fotoCanvas" style="display:none"></canvas><p id="fotoEstado" style="color:var(--muted)">Selecciona una imagen o abre la cámara.</p></div></div></section>
+    </div>
+    <script>
+"use strict";
+const $=id=>document.getElementById(id);
+const entrada=$("entrada"),estado=$("estado"),resultadoPantalla=$("resultadoPantalla"),expresionPantalla=$("expresion"),variablesPanel=$("variablesPanel"),variablesLista=$("variablesLista"),fraccionesPanel=$("fraccionesPanel"),menu=$("menu"),overlay=$("menuOverlay");
+math.config({number:"BigNumber",precision:80});
+let variables={};
+let variablesAutomaticas=new Set();
+let historial=[];
+let angulo="rad";
+const funcionesReservadas=new Set(["abs","acos","asin","atan","ceil","cos","csc","cot","det","diff","exp","floor","log","log10","ln","max","min","round","sec","sin","sqrt","tan","trace","transpose","inv","sinh","cosh","tanh","asinh","acosh","atanh"]);
+const constantesReservadas=new Set(["pi","e","i","Infinity","phi","true","false","NaN"]);
+const modos={calculadora:["MyCalculator","Expresiones, fracciones, variables y cálculo"],ecuaciones:["Ecuaciones y sistemas","Resolución algebraica"],binario:["Calculadora Binaria","Bases y operaciones de bits"],estadistica:["Estadística","Análisis de datos"],matrices:["Matrices","Álgebra lineal"],complejos:["Números Complejos","Operaciones con i"],unidades:["Conversor de Unidades","Conversiones"],graficas:["Gráficas","Todas las funciones que quieras"],foto:["Foto de matemáticas","Preparado para reconocimiento"]};
+
+function cerrarMenu(){menu.classList.remove("abierto");overlay.classList.remove("abierto")}
+$("menuButton").addEventListener("click",()=>{menu.classList.toggle("abierto");overlay.classList.toggle("abierto")});
+overlay.addEventListener("click",cerrarMenu);
+document.querySelectorAll(".menu-item").forEach(b=>b.addEventListener("click",()=>cambiarModo(b.dataset.modo)));
+function cambiarModo(modo){document.querySelectorAll(".modo").forEach(x=>x.classList.remove("activo"));$("modo-"+modo).classList.add("activo");document.querySelectorAll(".menu-item").forEach(x=>x.classList.toggle("activo",x.dataset.modo===modo));$("tituloModo").textContent=modos[modo][0];$("subtituloModo").textContent=modos[modo][1];cerrarMenu();if(modo==="unidades")cargarUnidades();if(modo==="graficas")setTimeout(dibujarGraficas,0)}
+
+function obtenerAscii(){try{return entrada.getValue("ascii-math")||""}catch{return entrada.value||""}}
+function actualizarCalculadora(){expresionPantalla.textContent=obtenerAscii()||"-";detectarVariables()}
+function insertarTextoMath(texto){try{const actual=obtenerAscii();let nuevo=actual;const limpio=String(texto).replaceAll("\\cdot ","*").replaceAll("\\div ","/");if(limpio.includes("#?")){entrada.setValue((actual?actual:"")+limpio);return}entrada.setValue((actual?actual:"")+limpio)}catch{entrada.value=(entrada.value||"")+texto}actualizarCalculadora()}
+function insertarFraccion(){const actual=obtenerAscii();entrada.setValue(actual+"\\frac{#?}{#?}");actualizarCalculadora()}
+function borrar(){const s=obtenerAscii();entrada.setValue(s.slice(0,-1));actualizarCalculadora()}
+function cambiarSigno(){const s=obtenerAscii();entrada.setValue(s?"-"+s:"-");actualizarCalculadora()}
+function limpiar(){entrada.setValue("");mostrarResultado("0");fraccionesPanel.classList.remove("visible");estado.textContent="Motor matemático activo";variables={};variablesAutomaticas.clear();variablesPanel.classList.remove("visible");mostrarVariables()}
+
+function normalizarSimbolos(t){return String(t).replaceAll("×","*").replaceAll("·","*").replaceAll("÷","/").replaceAll("−","-").replaceAll("→","->").replaceAll("∞","Infinity").replaceAll("π","pi").replaceAll("φ","phi").replaceAll("√","sqrt")}
+function prepararAngulos(exp){if(angulo==="rad")return exp;return exp.replace(/\b(sin|cos|tan)\(([^()]+)\)/g,(m,f,a)=>f+"("+a+" deg)").replace(/\b(asin|acos|atan)\(([^()]+)\)/g,(m,f,a)=>f+"("+a+")*180/pi")}
+function extraerInterior(texto,inicio){let p=0;for(let i=inicio;i<texto.length;i++){if(texto[i]==="(")p++;else if(texto[i]===")"){p--;if(p===0)return{contenido:texto.slice(inicio+1,i),final:i}}}throw new Error("Hay un paréntesis sin cerrar.")}
+function separarArgumentos(t){const r=[];let ini=0,p=0;for(let i=0;i<t.length;i++){if(t[i]==="(")p++;else if(t[i]===")")p--;else if(t[i]===","&&p===0){r.push(t.slice(ini,i).trim());ini=i+1}}r.push(t.slice(ini).trim());return r}
+function separarFlecha(t){let p=t.indexOf("->");if(p<0)throw new Error("Falta la flecha →.");const variable=t.slice(0,p).trim(),valor=t.slice(p+2).trim();if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(variable))throw new Error("Variable no válida antes de →.");return{variable,valor}}
+function escapar(t){return String(t).replaceAll("\\","\\\\").replaceAll('"','\\"')}
+function transformarEspeciales(exp){let out="",i=0;while(i<exp.length){if((exp[i]==="Σ"||exp[i]==="∑")&&exp[i+1]==="("){const b=extraerInterior(exp,i+1),a=separarArgumentos(b.contenido);if(a.length!==3)throw new Error("Σ usa Σ(variable→inicio,fin,expresión).");const r=separarFlecha(a[0]);out+=`__sigma("${escapar(r.variable)}","${escapar(r.valor)}","${escapar(a[1])}","${escapar(a[2])}")`;i=b.final+1;continue}if((exp[i]==="Π"||exp[i]==="∏")&&exp[i+1]==="("){const b=extraerInterior(exp,i+1),a=separarArgumentos(b.contenido);if(a.length!==3)throw new Error("Π usa Π(variable→inicio,fin,expresión).");const r=separarFlecha(a[0]);out+=`__prod("${escapar(r.variable)}","${escapar(r.valor)}","${escapar(a[1])}","${escapar(a[2])}")`;i=b.final+1;continue}if(exp[i]==="∫"&&exp[i+1]==="("){const b=extraerInterior(exp,i+1),a=separarArgumentos(b.contenido);if(a.length!==3)throw new Error("∫ usa ∫(expresión,variable→inicio,fin).");const r=separarFlecha(a[1]);out+=`__integral("${escapar(a[0])}","${escapar(r.variable)}","${escapar(r.valor)}","${escapar(a[2])}")`;i=b.final+1;continue}if(exp.startsWith("lim(",i)){const b=extraerInterior(exp,i+3),a=separarArgumentos(b.contenido);if(a.length!==2)throw new Error("lim usa lim(variable→valor,expresión).");const r=separarFlecha(a[0]);out+=`__limit("${escapar(r.variable)}","${escapar(r.valor)}","${escapar(a[1])}")`;i=b.final+1;continue}if(exp.startsWith("deriv(",i)){const b=extraerInterior(exp,i+5),a=separarArgumentos(b.contenido);if(a.length!==2)throw new Error("deriv usa deriv(expresión,variable→punto).");const r=separarFlecha(a[1]);out+=`__deriv("${escapar(a[0])}","${escapar(r.variable)}","${escapar(r.valor)}")`;i=b.final+1;continue}out+=exp[i];i++}return out}
+
+function crearScope(stack=new Set(),overrides={}){const scope={};for(const n of Object.keys(variables)){if(n in overrides){scope[n]=overrides[n];continue}Object.defineProperty(scope,n,{enumerable:true,configurable:true,get(){return evaluarVariable(n,stack)}})}scope.__sigma=(v,a,b,c)=>calcularSigma(v,a,b,c,stack);scope.__prod=(v,a,b,c)=>calcularProducto(v,a,b,c,stack);scope.__integral=(c,v,a,b)=>calcularIntegral(c,v,a,b,stack);scope.__limit=(v,p,c)=>calcularLimite(v,p,c,stack);scope.__deriv=(c,v,p)=>calcularDerivada(c,v,p,stack);return scope}
+function evaluarFormula(formula,stack=new Set(),overrides={}){let exp=normalizarSimbolos(formula);exp=prepararAngulos(exp);exp=transformarEspeciales(exp);return math.evaluate(exp,crearScope(stack,overrides))}
+function evaluarVariable(nombre,stack){if(stack.has(nombre))throw new Error("Dependencia circular: "+[...stack,nombre].join(" → "));const v=variables[nombre];if(!v||!v.formula.trim())throw new Error("La variable "+nombre+" no tiene valor.");const ns=new Set(stack);ns.add(nombre);return evaluarFormula(v.formula,ns)}
+function calcularSigma(v,a,b,c,stack){const ini=Math.floor(Number(math.number(evaluarFormula(a,stack)))),fin=Math.floor(Number(math.number(evaluarFormula(b,stack))));if(!Number.isFinite(fin))throw new Error("Σ hasta ∞ necesita análisis de convergencia.");if(fin-ini>1000000)throw new Error("Intervalo Σ demasiado grande.");let s=math.bignumber(0);for(let n=ini;n<=fin;n++)s=math.add(s,evaluarFormula(c,stack,{[v]:math.bignumber(n)}));return s}
+function calcularProducto(v,a,b,c,stack){const ini=Math.floor(Number(math.number(evaluarFormula(a,stack)))),fin=Math.floor(Number(math.number(evaluarFormula(b,stack))));if(!Number.isFinite(fin))throw new Error("Π hasta ∞ necesita análisis de convergencia.");if(fin-ini>100000)throw new Error("Intervalo Π demasiado grande.");let p=math.bignumber(1);for(let n=ini;n<=fin;n++)p=math.multiply(p,evaluarFormula(c,stack,{[v]:math.bignumber(n)}));return p}
+function calcularIntegral(c,v,a,b,stack){const ini=Number(math.number(evaluarFormula(a,stack))),fin=Number(math.number(evaluarFormula(b,stack)));if(!Number.isFinite(ini)||!Number.isFinite(fin))throw new Error("Para ∫ con límites infinitos necesitamos otro método.");const pasos=2000,h=(fin-ini)/pasos;let s=0;for(let i=0;i<=pasos;i++){const x=ini+i*h,q=Number(math.number(evaluarFormula(c,stack,{[v]:x})));if(!Number.isFinite(q))throw new Error("La integral encontró un valor no finito.");s+=(i===0||i===pasos)?q:i%2===0?2*q:4*q}return s*h/3}
+function calcularLimite(v,p,c,stack){const x=Number(math.number(evaluarFormula(p,stack))),h=1e-7;const a=Number(math.number(evaluarFormula(c,stack,{[v]:x-h}))),b=Number(math.number(evaluarFormula(c,stack,{[v]:x+h})));return(a+b)/2}
+function calcularDerivada(c,v,p,stack){const x=Number(math.number(evaluarFormula(p,stack))),h=1e-6;const a=Number(math.number(evaluarFormula(c,stack,{[v]:x-h}))),b=Number(math.number(evaluarFormula(c,stack,{[v]:x+h})));return(b-a)/(2*h)}
+
+function formatearResultado(v){try{return math.format(v,{precision:55,lowerExp:-40,upperExp:60})}catch{return String(v)}}
+function mostrarResultado(t,error=false){resultadoPantalla.textContent=t;resultadoPantalla.className="pantalla-resultado"+(error?" pantalla-error":"")}
+function resolver(){const exp=obtenerAscii().trim();if(!exp){mostrarResultado("Escribe una expresión.",true);return}try{const v=evaluarFormula(exp);const texto=formatearResultado(v);mostrarResultado(texto);mostrarFraccion(exp,texto);guardarHistorial(exp,texto);estado.textContent="Cálculo realizado";mostrarExplicacion(exp,texto)}catch(e){mostrarResultado(e.message,true);fraccionesPanel.classList.remove("visible");estado.textContent="Revisa la expresión."}}
+function mostrarExplicacion(exp,texto){const n=$("explicacionCalculadora");if(!n)return;const s=normalizarSimbolos(exp);if(/^\(?\s*-?\d+(\.\d+)?\s*[+\-*/]\s*-?\d+(\.\d+)?\s*\)?$/.test(s))n.innerHTML=`<strong>Explicación rápida:</strong> operación evaluada exactamente por el motor. Resultado: <strong>${esc(texto)}</strong>`;else n.innerHTML=`<strong>Resultado:</strong> ${esc(texto)}`}
+
+class Racional{constructor(n,d=1n){if(d===0n)throw new Error("División entre cero.");this.n=BigInt(n);this.d=BigInt(d);if(this.d<0n){this.n=-this.n;this.d=-this.d}}add(o){return new Racional(this.n*o.d+o.n*this.d,this.d*o.d)}sub(o){return new Racional(this.n*o.d-o.n*this.d,this.d*o.d)}mul(o){return new Racional(this.n*o.n,this.d*o.d)}div(o){return new Racional(this.n*o.d,this.d*o.n)}pow(o){if(o.d!==1n)throw new Error("Exponente racional no entero.");if(o.n===0n)return new Racional(1n);if(o.n>0n)return new Racional(this.n**o.n,this.d**o.n);return new Racional(this.d**(-o.n),this.n**(-o.n))}}
+function gcd(a,b){a=a<0n?-a:a;b=b<0n?-b:b;while(b){const t=a%b;a=b;b=t}return a}
+function simplificar(r){if(r.n===0n)return new Racional(0n);const g=gcd(r.n,r.d);return new Racional(r.n/g,r.d/g)}
+function rText(r){return r.d===1n?r.n.toString():`${r.n}/${r.d}`}
+function decimalRacional(t){if(/[eE]/.test(t))throw 0;if(t.includes(".")){const [ent,dec]=t.split("."),d=10n**BigInt(dec.length),neg=ent.startsWith("-"),en=BigInt((ent||"0").replace("-","")),dn=BigInt(dec||"0"),n=en*d+dn;return new Racional(neg?-n:n,d)}return new Racional(BigInt(t),1n)}
+class ParserR{constructor(t){this.t=t.replace(/\\cdot/g,"*").replace(/\\div/g,"/").replace(/\s+/g,"");this.p=0}cur(){return this.t[this.p]}take(c){if(this.cur()===c){this.p++;return true}return false}parse(){const r=this.expr();if(this.p!==this.t.length)throw 0;return r}expr(){let v=this.term();while(this.cur()==="+"||this.cur()==="-"){const o=this.cur();this.p++;const q=this.term();v=o==="+"?v.add(q):v.sub(q)}return v}term(){let v=this.pow();while(this.cur()==="*"||this.cur()==="/"){const o=this.cur();this.p++;const q=this.pow();v=o==="*"?v.mul(q):v.div(q)}return v}pow(){let v=this.unary();if(this.take("^"))v=v.pow(this.pow());return v}unary(){if(this.take("+"))return this.unary();if(this.take("-"))return this.unary().mul(new Racional(-1n));return this.primary()}primary(){if(this.take("(")){const r=this.expr();if(!this.take(")"))throw 0;return r}const s=this.p;while(/[0-9.]/.test(this.cur()||""))this.p++;if(s===this.p)throw 0;return decimalRacional(this.t.slice(s,this.p))}}
+function mostrarFraccion(exp,decimal){if(!/[\/]/.test(exp)){fraccionesPanel.classList.remove("visible");return}try{const r=new ParserR(exp).parse(),s=simplificar(r);$("fraccionFinal").textContent=rText(r);$("fraccionSimplificada").textContent=rText(s);$("fraccionDecimal").textContent=math.format(math.bignumber(s.n.toString()).div(math.bignumber(s.d.toString())),{precision:45});fraccionesPanel.classList.add("visible")}catch{$("fraccionFinal").textContent="No exacta";$("fraccionSimplificada").textContent="No disponible";$("fraccionDecimal").textContent=decimal;fraccionesPanel.classList.add("visible")}}
+
+function limpiarVariablesAutomaticas(){for(const n of [...variablesAutomaticas]){delete variables[n]}variablesAutomaticas.clear()}
+function detectarVariables(){const texto=obtenerAscii();const encontrados=[];let i=0;while(i<texto.length){const slice=texto.slice(i);const m=slice.match(/^[A-Za-z_][A-Za-z0-9_]*/);if(m){const palabra=m[0];if(funcionesReservadas.has(palabra)||constantesReservadas.has(palabra)||palabra.startsWith("__")){i+=palabra.length;continue}if(/^[A-Za-z]$/.test(palabra)){encontrados.push(palabra);i+=1;continue}for(const letra of palabra.split("")){if(/[A-Za-z]/.test(letra))encontrados.push(letra)}i+=palabra.length;continue}i++}
+const unicos=[...new Set(encontrados)];const usuario=[...Object.keys(variables)].filter(n=>!variablesAutomaticas.has(n));
+limpiarVariablesAutomaticas();for(const n of unicos){if(!funcionesReservadas.has(n)&&!constantesReservadas.has(n)&&!variables[n]){variables[n]={formula:""};variablesAutomaticas.add(n)}}
+for(const n of usuario){if(!variables[n])variables[n]={formula:""}}
+variablesPanel.classList.toggle("visible",Object.keys(variables).length>0);mostrarVariables()}
+function mostrarVariables(){variablesLista.innerHTML="";for(const nombre of Object.keys(variables)){const card=document.createElement("div");card.className="variable-card";const label=document.createElement("label");label.className="variable-label";label.textContent=nombre+" =";const field=document.createElement("math-field");field.className="variable-formula";field.value=variables[nombre].formula||"";field.addEventListener("input",()=>{variables[nombre].formula=field.getValue("ascii-math")||"";variablesAutomaticas.delete(nombre);variables[nombre].manual=true});const del=document.createElement("button");del.type="button";del.className="variable-delete";del.textContent="Eliminar";del.addEventListener("click",()=>{delete variables[nombre];variablesAutomaticas.delete(nombre);mostrarVariables()});card.append(label,field,del);variablesLista.appendChild(card)}}
+function crearVariableManual(){for(const n of "abcdefghijklmnopqrstuvwxyz"){if(!variables[n]){variables[n]={formula:"",manual:true};variablesPanel.classList.add("visible");mostrarVariables();return}}}
+
+function cambiarTab(tab){["Basica","Avanzada","Letras"].forEach(n=>$("contenido"+n).classList.toggle("activo",tab===n.toLowerCase()));$("tabBasica").classList.toggle("activa",tab==="basica");$("tabAvanzada").classList.toggle("activa",tab==="avanzada");$("tabLetras").classList.toggle("activa",tab==="letras")}
+$("tabBasica").addEventListener("click",()=>cambiarTab("basica"));$("tabAvanzada").addEventListener("click",()=>cambiarTab("avanzada"));$("tabLetras").addEventListener("click",()=>cambiarTab("letras"));
+
+document.querySelectorAll(".calc-btn").forEach(btn=>btn.addEventListener("click",()=>insertarTextoMath(btn.dataset.v)));
+$("btnC").addEventListener("click",limpiar);$("btnBorrar").addEventListener("click",borrar);$("btnSigno").addEventListener("click",cambiarSigno);$("btnFraccion").addEventListener("click",insertarFraccion);$("btnIgual").addEventListener("click",resolver);$("btnCrearVariable").addEventListener("click",crearVariableManual);
+$("radBtn").addEventListener("click",()=>{angulo="rad";$("radBtn").classList.add("activo");$("degBtn").classList.remove("activo")});$("degBtn").addEventListener("click",()=>{angulo="deg";$("degBtn").classList.add("activo");$("radBtn").classList.remove("activo")});
+
+function cargarHistorial(){try{historial=JSON.parse(localStorage.getItem("myCalculatorHistory")||"[]")}catch{historial=[]}mostrarHistorial()}
+function esc(t){return String(t).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+function guardarHistorial(exp,res){historial.unshift({expresion:exp,resultado:res});historial=historial.slice(0,100);localStorage.setItem("myCalculatorHistory",JSON.stringify(historial));mostrarHistorial()}
+function mostrarHistorial(){const c=$("historialLista");c.innerHTML="";if(!historial.length){c.innerHTML='<div style="color:#64748b">Todavía no hay cálculos.</div>';return}for(const it of historial){const d=document.createElement("div");d.className="historial-item";d.innerHTML=`<div class="historial-exp">${esc(it.expresion)}</div><div class="historial-res">= ${esc(it.resultado)}</div>`;d.addEventListener("click",()=>{entrada.setValue(it.expresion);actualizarCalculadora()});c.appendChild(d)}}
+$("vaciarHistorial").addEventListener("click",()=>{historial=[];localStorage.removeItem("myCalculatorHistory");mostrarHistorial()});
+
+function construirBotonesLetras(){const lg=$("letrasGrid"),fg=$("fisicaGrid"),sg=$("simbolosGrid");for(const l of "abcdefghijklmnopqrstuvwxyz"){const b=document.createElement("button");b.type="button";b.textContent=l;b.addEventListener("click",()=>insertarTextoMath(l));lg.appendChild(b)}for(const l of ["m","M","g","a","v","r","t","c","G","q","E","B","I","F","p","P","T","R","L"]){const b=document.createElement("button");b.type="button";b.textContent=l;b.className="avanzado";b.addEventListener("click",()=>insertarTextoMath(l));fg.appendChild(b)}for(const s of ["α","β","γ","δ","ε","θ","λ","μ","ρ","σ","τ","φ","ω","Δ","∇","∞","π","e"]){const b=document.createElement("button");b.type="button";b.textContent=s;b.className="avanzado";b.addEventListener("click",()=>insertarTextoMath(s));sg.appendChild(b)}}
+
+function resolverEcuacionLineal(expr){const normal=expr.replace(/=/g,"-");const m=normal.match(/^\s*(.*?)\s*$/);if(!m)throw 0;const poly=math.simplify(normal);const f=s=>Number(math.evaluate(normal,{x:s}));const vals=[-2,-1,0,1,2],ys=vals.map(x=>({x,y:f(x)}));for(let j=0;j<ys.length-1;j++){if(ys[j].y===0)return [ys[j].x];if(ys[j].y*ys[j+1].y<0){let a=ys[j].x,b=ys[j+1].x;for(let k=0;k<80;k++){const c=(a+b)/2;if(f(a)*f(c)<=0)b=c;else a=c}return [(a+b)/2]}}throw new Error("No se encontró una raíz en el intervalo probado.")}
+function resolverEcuacion(){const inp=$("ecuacionInput").value.trim(),out=$("resultadoEcuacion");if(!inp){out.textContent="Introduce una ecuación.";return}try{if((inp.match(/=/g)||[]).length!==1)throw new Error("Usa exactamente un signo =.");const [l,r]=inp.split("=");const expr=`(${l})-(${r})`;const simpl=math.simplify(expr).toString();let sol=resolverEcuacionLineal(expr);out.innerHTML=`<strong>Ecuación:</strong> ${esc(inp)}<br><strong>Reducida:</strong> ${esc(simpl)} = 0<br><strong>Solución aproximada:</strong> x = ${sol.map(x=>math.format(x,{precision:20})).join(", ")}`}catch(e){out.textContent="No se pudo resolver: "+e.message}}
+function resolverSistema(){const lineas=$("sistemaInput").value.split(/\n+/).map(x=>x.trim()).filter(Boolean),out=$("resultadoSistema");try{if(lineas.length<2)throw new Error("Necesitas al menos dos ecuaciones.");const vars=[...new Set(lineas.join(" ").match(/[A-Za-z]+/g)||[])].filter(x=>![...funcionesReservadas,...constantesReservadas].includes(x));const nombres=vars.slice(0,3);const A=[],b=[];for(const linea of lineas){const [l,r]=linea.split("=");if(r===undefined)throw 0;const row=nombres.map(v=>Number(math.derivative(math.parse(l+"-"+r),v).evaluate(nombres.reduce((o,k)=>{o[k]=0;return o},{}))));const c=-Number(math.evaluate((l+"-("+r+")").replaceAll(nombres[0],"0"),{}));A.push(row);b.push(c)}const sol=math.lusolve(A,b);out.innerHTML=sol.map((v,i)=>`${nombres[i]} = ${math.format(v[0],{precision:20})}`).join("<br>")}catch(e){out.textContent="No se pudo resolver el sistema con esta entrada: "+e.message}}
+$("resolverEcuacion").addEventListener("click",resolverEcuacion);$("resolverSistema").addEventListener("click",resolverSistema);$("tabEcuacion").addEventListener("click",()=>{$("panelEcuacion").style.display="block";$("panelSistema").style.display="none";$('tabEcuacion').classList.add("activa");$('tabSistema').classList.remove("activa")});$("tabSistema").addEventListener("click",()=>{$("panelEcuacion").style.display="none";$('panelSistema').style.display="block";$('tabSistema').classList.add("activa");$('tabEcuacion').classList.remove("activa")});
+
+function convertirBinario(){const d=$("binDecimal"),b=$("binBinario"),h=$("binHex"),o=$("binOctal"),out=$("resultadoBinario");try{let n;if(d.value.trim())n=BigInt(d.value.trim());else if(b.value.trim())n=BigInt("0b"+b.value.trim());else if(h.value.trim())n=BigInt("0x"+h.value.trim());else if(o.value.trim())n=BigInt("0o"+o.value.trim());else throw 0;d.value=n.toString(10);b.value=n.toString(2);h.value=n.toString(16).toUpperCase();o.value=n.toString(8);out.textContent="Conversión correcta."}catch{out.textContent="Número no válido."}}
+function operarBits(op){try{const a=BigInt($("bitA").value),b=BigInt($("bitB").value||"0");const r=op==="and"?a&b:op==="or"?a|b:op==="xor"?a^b:a<<1n;$("resultadoBits").innerHTML=`Decimal: ${r}<br>Binario: ${r.toString(2)}<br>Hexadecimal: ${r.toString(16).toUpperCase()}`}catch{$("resultadoBits").textContent="Entrada no válida."}}
+$("convertirBinario").addEventListener("click",convertirBinario);$("bitAnd").addEventListener("click",()=>operarBits("and"));$("bitOr").addEventListener("click",()=>operarBits("or"));$("bitXor").addEventListener("click",()=>operarBits("xor"));$("bitShift").addEventListener("click",()=>operarBits("shift"));
+
+function calcularEstadistica(){const v=$("datosEstadistica").value.split(/[,;\s]+/).map(Number).filter(Number.isFinite),o=[...v].sort((a,b)=>a-b),out=$("resultadoEstadistica");if(!v.length){out.textContent="No hay datos.";return}const sum=v.reduce((a,b)=>a+b,0),media=sum/v.length,med=v.length%2?o[(v.length-1)/2]:(o[v.length/2-1]+o[v.length/2])/2;const f=new Map();v.forEach(x=>f.set(x,(f.get(x)||0)+1));const mf=Math.max(...f.values()),mod=[...f.entries()].filter(([,n])=>n===mf).map(([x])=>x);const vp=v.reduce((s,x)=>s+(x-media)**2,0)/v.length;out.innerHTML=`<div class="estadistica-grid"><div class="estadistica-card"><small>n</small><strong>${v.length}</strong></div><div class="estadistica-card"><small>Suma</small><strong>${sum}</strong></div><div class="estadistica-card"><small>Media</small><strong>${media}</strong></div><div class="estadistica-card"><small>Mediana</small><strong>${med}</strong></div><div class="estadistica-card"><small>Moda</small><strong>${mod.join(", ")}</strong></div><div class="estadistica-card"><small>Mínimo</small><strong>${o[0]}</strong></div><div class="estadistica-card"><small>Máximo</small><strong>${o[o.length-1]}</strong></div><div class="estadistica-card"><small>Varianza</small><strong>${vp}</strong></div></div>`}
+$("calcularEstadistica").addEventListener("click",calcularEstadistica);
+
+function obtenerMatriz(id){return math.evaluate($(id).value)}
+function operarMatriz(op){try{const A=obtenerMatriz("matrizA");let r;if(op==="det")r=math.det(A);else if(op==="inv")r=math.inv(A);else if(op==="transpose")r=math.transpose(A);else if(op==="trace")r=math.trace(A);else if(op==="rank")r=math.rank(A);else if(op==="eigen")r=math.eigs(A);else{const B=obtenerMatriz("matrizB");r=op==="add"?math.add(A,B):math.multiply(A,B)}$("resultadoMatrices").textContent=math.format(r,{precision:30})}catch(e){$("resultadoMatrices").textContent="Error: "+e.message}}
+document.querySelectorAll("[data-matriz]").forEach(b=>b.addEventListener("click",()=>operarMatriz(b.dataset.matriz)));
+function getZ(){return math.evaluate($("expresionCompleja").value)}
+function opComplejo(op){try{const z=getZ();let r;if(op==="re")r=math.re(z);else if(op==="im")r=math.im(z);else if(op==="abs")r=math.abs(z);else if(op==="arg")r=math.arg(z);else if(op==="conj")r=math.conj(z);else if(op==="polar"){r=`r = ${math.abs(z)}<br>θ = ${math.arg(z)}`;$("resultadoComplejo").innerHTML=r;return}else r=z;$("resultadoComplejo").textContent=math.format(r,{precision:30})}catch(e){$("resultadoComplejo").textContent=e.message}}
+$("calcularComplejo").addEventListener("click",()=>opComplejo("rect"));document.querySelectorAll("[data-complejo]").forEach(b=>b.addEventListener("click",()=>opComplejo(b.dataset.complejo)));
+
+const unidades={length:{mm:.001,cm:.01,m:1,km:1000,in:.0254,ft:.3048,yd:.9144,mi:1609.344},mass:{mg:1e-6,g:.001,kg:1,t:1000,oz:.028349523125,lb:.45359237},time:{ms:.001,s:1,min:60,h:3600,day:86400},speed:{"m/s":1,"km/h":1/3.6,mph:.44704},area:{"mm²":1e-6,"cm²":1e-4,"m²":1,"km²":1e6,"ft²":.09290304,"mi²":2589988.110336},volume:{ml:1e-6,l:.001,"m³":1,"cm³":1e-6,gal:.003785411784},temperature:{C:"C",F:"F",K:"K"}};
+function cargarUnidades(){const t=$("tipoUnidad").value,a=$("unidadOrigen"),b=$("unidadDestino");a.innerHTML="";b.innerHTML="";Object.keys(unidades[t]).forEach(u=>{a.add(new Option(u,u));b.add(new Option(u,u))})}
+function convTemp(v,f,t){const c=f==="C"?v:f==="F"?(v-32)*5/9:v-273.15;return t==="C"?c:t==="F"?c*9/5+32:c+273.15}
+function convertirUnidad(){const t=$("tipoUnidad").value,v=Number($("valorUnidad").value),f=$("unidadOrigen").value,to=$("unidadDestino").value,out=$("resultadoUnidad");if(!Number.isFinite(v)){out.textContent="Introduce un valor.";return}const r=t==="temperature"?convTemp(v,f,to):v*unidades[t][f]/unidades[t][to];out.innerHTML=`${v} ${f} = <strong>${r}</strong> ${to}`}
+$("tipoUnidad").addEventListener("change",cargarUnidades);$("convertirUnidad").addEventListener("click",convertirUnidad);
+
+let graficas=[];let graficaTimer=null;const coloresDefault=["#60a5fa","#f87171","#4ade80","#c084fc","#facc15","#fb923c","#2dd4bf","#f472b6","#fb7185","#a78bfa"];
+function guardarGraficas(){localStorage.setItem("myCalculatorGraphs",JSON.stringify(graficas))}
+function cargarGraficas(){try{graficas=JSON.parse(localStorage.getItem("myCalculatorGraphs")||"[]")}catch{graficas=[]}if(!graficas.length)graficas=[{formula:"sin(x)",color:coloresDefault[0]}];renderGraficas()}
+function addGrafica(){graficas.push({formula:"",color:coloresDefault[graficas.length%coloresDefault.length]});renderGraficas()}
+function eliminarGrafica(i){graficas.splice(i,1);if(!graficas.length)graficas.push({formula:"",color:coloresDefault[0]});guardarGraficas();renderGraficas()}
+function renderGraficas(){const c=$("graficaLista");c.innerHTML="";graficas.forEach((g,i)=>{const row=document.createElement("div");row.className="grafica-row";const inp=document.createElement("input");inp.className="campo";inp.placeholder="Ejemplo: sin(x)";inp.value=g.formula;inp.addEventListener("input",()=>{g.formula=inp.value;guardarGraficas();programarGrafica()});const color=document.createElement("input");color.type="color";color.className="grafica-color";color.value=g.color;color.addEventListener("input",()=>{g.color=color.value;guardarGraficas();programarGrafica()});const del=document.createElement("button");del.type="button";del.textContent="Eliminar";del.addEventListener("click",()=>eliminarGrafica(i));row.append(inp,color,del);c.appendChild(row)});programarGrafica()}
+function programarGrafica(){clearTimeout(graficaTimer);graficaTimer=setTimeout(dibujarGraficas,80)}
+function dibujarGraficas(){const c=$("graficaCanvas"),ctx=c.getContext("2d"),box=c.parentElement,w=Math.max(300,box.clientWidth),h=500,dpr=window.devicePixelRatio||1;c.width=w*dpr;c.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);const xmin=Number($("graficaXMin").value),xmax=Number($("graficaXMax").value),ymin=Number($("graficaYMin").value),ymax=Number($("graficaYMax").value);if(!(xmax>xmin&&ymax>ymin))return;const px=x=>(x-xmin)/(xmax-xmin)*w,py=y=>h-(y-ymin)/(ymax-ymin)*h;ctx.clearRect(0,0,w,h);ctx.strokeStyle="#162237";ctx.lineWidth=1;for(let i=0;i<=10;i++){const x=xmin+i*(xmax-xmin)/10,y=ymin+i*(ymax-ymin)/10;ctx.beginPath();ctx.moveTo(px(x),0);ctx.lineTo(px(x),h);ctx.stroke();ctx.beginPath();ctx.moveTo(0,py(y));ctx.lineTo(w,py(y));ctx.stroke()}ctx.strokeStyle="#50627e";if(xmin<=0&&xmax>=0){ctx.beginPath();ctx.moveTo(px(0),0);ctx.lineTo(px(0),h);ctx.stroke()}if(ymin<=0&&ymax>=0){ctx.beginPath();ctx.moveTo(0,py(0));ctx.lineTo(w,py(0));ctx.stroke()}for(const g of graficas){if(!g.formula.trim())continue;ctx.strokeStyle=g.color;ctx.lineWidth=2;ctx.beginPath();let first=true,lastY=null;const steps=Math.max(800,Math.floor(w*1.5));for(let i=0;i<=steps;i++){const x=xmin+(xmax-xmin)*i/steps;try{let y=Number(math.number(evaluarFormula(normalizarSimbolos(g.formula),new Set(),{x})));if(!Number.isFinite(y)||Math.abs(y)>1e8){first=true;lastY=null;continue}const yy=py(y);if(first||lastY!==null&&Math.abs(yy-lastY)>h*2)ctx.moveTo(px(x),yy);else ctx.lineTo(px(x),yy);first=false;lastY=yy}catch{first=true;lastY=null}}ctx.stroke()}const leg=$("graficaLeyenda");leg.innerHTML="";graficas.forEach((g,i)=>{if(!g.formula.trim())return;const d=document.createElement("div");d.className="leyenda-item";d.style.borderLeft="4px solid "+g.color;d.textContent=`f${i+1}(x) = ${g.formula}`;leg.appendChild(d)})}
+$("anadirGrafica").addEventListener("click",addGrafica);$("dibujarGraficas").addEventListener("click",dibujarGraficas);["graficaXMin","graficaXMax","graficaYMin","graficaYMax"].forEach(id=>$(id).addEventListener("input",programarGrafica));
+
+let stream=null;$("fotoInput").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const url=URL.createObjectURL(f);$("fotoPreview").src=url;$("fotoPreview").classList.add("visible");$("fotoEstado").textContent="Imagen cargada. El reconocimiento matemático se conectará después."});
+$("abrirCamara").addEventListener("click",async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});const v=$("camaraVideo");v.srcObject=stream;v.style.display="block";await v.play();$("cerrarCamara").style.display="inline-block";$("hacerFoto").style.display="inline-block";$("fotoEstado").textContent="Cámara activa."}catch(e){$("fotoEstado").textContent="No se pudo abrir la cámara: "+e.message}});
+$("cerrarCamara").addEventListener("click",cerrarCamara);function cerrarCamara(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("camaraVideo").style.display="none";$("cerrarCamara").style.display="none";$("hacerFoto").style.display="none"}
+$("hacerFoto").addEventListener("click",()=>{const v=$("camaraVideo"),c=$("fotoCanvas"),ctx=c.getContext("2d");c.width=v.videoWidth;c.height=v.videoHeight;ctx.drawImage(v,0,0);$("fotoPreview").src=c.toDataURL("image/png");$("fotoPreview").classList.add("visible");$("fotoEstado").textContent="Foto capturada. Lista para conectar al reconocimiento matemático.";cerrarCamara()});
+
+const expHelp=document.createElement("div");expHelp.id="explicacionCalculadora";expHelp.className="info";expHelp.innerHTML="Introduce una expresión usando los botones.";$("btnIgual").after(expHelp);
+cargarHistorial();cargarGraficas();cargarUnidades();construirBotonesLetras();actualizarCalculadora();
+window.addEventListener("resize",()=>{if($("modo-graficas").classList.contains("activo"))programarGrafica()});
+    </script>
+</body>
+</html>
